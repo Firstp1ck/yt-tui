@@ -291,6 +291,96 @@ impl YouTubeClient {
 
         Ok(all_videos)
     }
+
+    /// Search for videos on YouTube platform.
+    ///
+    /// # Arguments
+    /// * `query` - Search query string
+    /// * `max_results` - Maximum number of videos to return
+    ///
+    /// # Returns
+    /// * `Result<Vec<Video>>` - List of videos matching the search query
+    ///
+    /// # Details
+    /// Uses the search.list endpoint to search YouTube for videos.
+    /// Fetches full video details including duration and statistics.
+    pub async fn search_videos(&self, query: &str, max_results: u32) -> Result<Vec<Video>> {
+        let url = format!("{}/search", self.base_url);
+        let params = [
+            ("part", "snippet"),
+            ("type", "video"),
+            ("q", query),
+            ("maxResults", &max_results.to_string()),
+            ("key", &self.api_key),
+        ];
+
+        let response = self
+            .client
+            .get(&url)
+            .query(&params)
+            .send()
+            .await
+            .context("Failed to search videos from YouTube API")?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(anyhow::anyhow!(
+                "YouTube API error ({}): {}",
+                status,
+                error_text
+            ));
+        }
+
+        #[derive(Debug, serde::Deserialize)]
+        struct ApiSearchItem {
+            id: ApiSearchItemId,
+            #[allow(dead_code)] // Snippet is part of API response but we only need the video ID
+            snippet: crate::youtube::models::ApiSnippet,
+        }
+
+        #[derive(Debug, serde::Deserialize)]
+        struct ApiSearchItemId {
+            #[serde(rename = "videoId")]
+            video_id: String,
+        }
+
+        let api_response: ApiResponse<ApiSearchItem> = response
+            .json()
+            .await
+            .context("Failed to parse search response")?;
+
+        // Extract video IDs
+        let video_ids: Vec<String> = api_response
+            .items
+            .iter()
+            .map(|item| item.id.video_id.clone())
+            .collect();
+
+        if video_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Fetch full video details
+        self.fetch_video_details(&video_ids).await
+    }
+
+    /// Fetch video details for history videos.
+    ///
+    /// # Arguments
+    /// * `video_ids` - List of video IDs from history
+    ///
+    /// # Returns
+    /// * `Result<Vec<Video>>` - List of video details
+    ///
+    /// # Details
+    /// Reuses fetch_video_details to get full video information.
+    pub async fn fetch_history_videos(&self, video_ids: &[String]) -> Result<Vec<Video>> {
+        if video_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        self.fetch_video_details(video_ids).await
+    }
 }
 
 #[cfg(test)]

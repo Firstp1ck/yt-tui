@@ -216,7 +216,8 @@ pub struct ApiActivitySnippet {
     pub published_at: String,
     /// Activity type
     #[serde(rename = "type")]
-    #[allow(dead_code)] // Part of API response structure, may be used for filtering activity types
+    #[allow(dead_code)]
+    // Part of API response structure, may be used for filtering activity types
     pub activity_type: String,
     /// Video details (if type is "recommendation")
     pub content_details: Option<ApiActivityContentDetails>,
@@ -236,7 +237,8 @@ pub struct ApiRecommendationDetails {
     #[serde(rename = "resourceId")]
     pub resource_id: ApiResourceId,
     /// Reason for recommendation
-    #[allow(dead_code)] // Part of API response structure, may be used for displaying recommendation reasons
+    #[allow(dead_code)]
+    // Part of API response structure, may be used for displaying recommendation reasons
     pub reason: Option<String>,
 }
 

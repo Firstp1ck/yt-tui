@@ -28,13 +28,17 @@ use ratatui::{
 ///
 /// Highlights the selected video.
 pub fn render_list(app: &App, area: Rect, buf: &mut Buffer) {
+    // Get the current video list based on active tab
+    let current_list = app.get_current_video_list();
+    let total_count = match app.active_tab() {
+        crate::app::Tab::CurrentView => app.all_videos.len(),
+        crate::app::Tab::Search => current_list.len(),
+        crate::app::Tab::History => current_list.len(),
+    };
+
     // Handle empty list
-    if app.filtered_videos.is_empty() {
-        let title = format!(
-            "Videos ({}/{})",
-            app.filtered_videos.len(),
-            app.all_videos.len()
-        );
+    if current_list.is_empty() {
+        let title = format!("Videos ({}/{})", current_list.len(), total_count);
         let list = List::new(vec![ListItem::new("No videos to display")])
             .block(Block::default().title(title).borders(Borders::ALL));
         Widget::render(list, area, buf);
@@ -42,7 +46,7 @@ pub fn render_list(app: &App, area: Rect, buf: &mut Buffer) {
     }
 
     // Ensure selected_index is valid
-    let selected_index = app.selected_index.min(app.filtered_videos.len().saturating_sub(1));
+    let selected_index = app.selected_index.min(current_list.len().saturating_sub(1));
 
     // Calculate separator width (accounting for borders)
     let separator_width = area.width.saturating_sub(2).max(10) as usize;
@@ -63,15 +67,14 @@ pub fn render_list(app: &App, area: Rect, buf: &mut Buffer) {
     };
 
     // Ensure we don't scroll past the end
-    let max_scroll = app.filtered_videos.len().saturating_sub(visible_videos);
+    let max_scroll = current_list.len().saturating_sub(visible_videos);
     let scroll_offset = scroll_offset.min(max_scroll);
 
     // Only render visible items based on scroll offset
     let start_idx = scroll_offset;
-    let end_idx = (scroll_offset + visible_videos).min(app.filtered_videos.len());
+    let end_idx = (scroll_offset + visible_videos).min(current_list.len());
 
-    let items: Vec<ListItem> = app
-        .filtered_videos
+    let items: Vec<ListItem> = current_list
         .iter()
         .enumerate()
         .skip(start_idx)
@@ -139,21 +142,14 @@ pub fn render_list(app: &App, area: Rect, buf: &mut Buffer) {
             } else {
                 Style::default().fg(Color::DarkGray)
             };
-            let separator = Line::from(vec![Span::styled(
-                separator_line.clone(),
-                separator_style,
-            )]);
+            let separator = Line::from(vec![Span::styled(separator_line.clone(), separator_style)]);
 
             // Create ListItem with 6 lines (5 content + 1 separator: title takes 1 line)
             ListItem::new(vec![line1, line2, line3, line4, line5, separator]).style(base_style)
         })
         .collect();
 
-    let title = format!(
-        "Videos ({}/{})",
-        app.filtered_videos.len(),
-        app.all_videos.len()
-    );
+    let title = format!("Videos ({}/{})", current_list.len(), total_count);
 
     // Calculate relative selected index for visible items
     let relative_selected = if selected_index >= scroll_offset

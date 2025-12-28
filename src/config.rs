@@ -116,8 +116,8 @@ impl Config {
             .collect::<Vec<_>>()
             .join("\n");
 
-        let config: Config = serde_json::from_str(&json_content)
-            .with_context(|| "Failed to deserialize config")?;
+        let config: Config =
+            serde_json::from_str(&json_content).with_context(|| "Failed to deserialize config")?;
 
         Ok(config)
     }

@@ -81,10 +81,7 @@ pub fn render_filters(app: &App, area: Rect, buf: &mut Buffer) {
     // Sort mode
     lines.push(Line::from(vec![
         Span::styled("Sort: ", Style::default().fg(Color::Cyan)),
-        Span::styled(
-            app.sort_mode_name(),
-            Style::default().fg(Color::Magenta),
-        ),
+        Span::styled(app.sort_mode_name(), Style::default().fg(Color::Magenta)),
     ]));
 
     if lines.is_empty() {

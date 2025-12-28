@@ -22,7 +22,7 @@ pub fn open_in_mpv(video_url: &str) -> Result<()> {
     // Use mpv directly with YouTube URL
     // MPV has built-in yt-dlp support and handles YouTube URLs properly
     // We try Wayland-compatible video outputs first, then fall back to others
-    
+
     // Detect if we're on Wayland
     let is_wayland = std::env::var("XDG_SESSION_TYPE")
         .map(|s| s == "wayland")
@@ -43,7 +43,7 @@ pub fn open_in_mpv(video_url: &str) -> Result<()> {
     if is_wayland {
         // Wayland: Try different video outputs with audio
         let video_outputs = vec!["gpu", "dmabuf-wayland", "wlshm"];
-        
+
         for vo in &video_outputs {
             for ao in &audio_outputs {
                 let mut cmd = Command::new("mpv");
@@ -51,13 +51,13 @@ pub fn open_in_mpv(video_url: &str) -> Result<()> {
                     .arg(format!("--ytdl-format={}", format_preference))
                     .arg(format!("--vo={}", vo))
                     .arg(format!("--ao={}", ao));
-                
+
                 if *vo == "wlshm" {
                     cmd.arg("--hwdec=no");
                 }
-                
+
                 cmd.arg(video_url);
-                
+
                 if cmd.spawn().is_ok() {
                     return Ok(());
                 }
@@ -66,7 +66,7 @@ pub fn open_in_mpv(video_url: &str) -> Result<()> {
     } else {
         // X11: Try different video outputs with audio
         let video_outputs = vec!["gpu", "x11"];
-        
+
         for vo in &video_outputs {
             for ao in &audio_outputs {
                 let mut cmd = Command::new("mpv");
@@ -74,13 +74,13 @@ pub fn open_in_mpv(video_url: &str) -> Result<()> {
                     .arg(format!("--ytdl-format={}", format_preference))
                     .arg(format!("--vo={}", vo))
                     .arg(format!("--ao={}", ao));
-                
+
                 if *vo == "x11" {
                     cmd.arg("--hwdec=no");
                 }
-                
+
                 cmd.arg(video_url);
-                
+
                 if cmd.spawn().is_ok() {
                     return Ok(());
                 }

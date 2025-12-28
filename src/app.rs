@@ -31,6 +31,17 @@ pub enum SortMode {
     Creator,
 }
 
+/// Tab mode for different video views.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tab {
+    /// Current view - shows recommendations/trending videos
+    CurrentView,
+    /// Search tab - search YouTube platform
+    Search,
+    /// History tab - show watched videos
+    History,
+}
+
 /// Main application state.
 ///
 /// Manages all application data including videos, selection, search, and filters.
@@ -56,6 +67,16 @@ pub struct App {
     pub status_message: Option<String>,
     /// Current sort mode
     pub sort_mode: SortMode,
+    /// Active tab
+    pub active_tab: Tab,
+    /// Videos from platform search
+    pub search_results: Vec<Video>,
+    /// Videos from watch history
+    pub history_videos: Vec<Video>,
+    /// Search query for platform search (separate from filter search)
+    pub search_query_global: String,
+    /// Pending search task handle (for non-blocking search)
+    pub search_task: Option<tokio::task::JoinHandle<anyhow::Result<Vec<Video>>>>,
 }
 
 impl App {
@@ -79,6 +100,11 @@ impl App {
             history,
             status_message: None,
             sort_mode: SortMode::Date,
+            active_tab: Tab::CurrentView,
+            search_results: Vec::new(),
+            history_videos: Vec::new(),
+            search_query_global: String::new(),
+            search_task: None,
         }
     }
 
@@ -103,7 +129,13 @@ impl App {
     /// - Duration filters
     /// - Date filter
     /// - Hide watched option
+    ///
+    /// Only applies when on CurrentView tab.
     pub fn apply_filters(&mut self) {
+        // Only apply filters when on CurrentView tab
+        if self.active_tab != Tab::CurrentView {
+            return;
+        }
         let mut filtered: Vec<Video> = self.all_videos.clone();
 
         // Apply search query
@@ -213,21 +245,22 @@ impl App {
     ///
     /// # Returns
     /// * `Option<&Video>` - Selected video or None if list is empty
-    pub fn selected_video(&self) -> Option<&Video> {
-        self.filtered_videos.get(self.selected_index)
-    }
-
+    ///
+    /// # Deprecated
+    /// Use `selected_video_from_tab()` instead for tab-aware selection.
     /// Move selection up.
     ///
     /// # Details
     /// Decrements selected index, wrapping to bottom if at top.
     /// Updates scroll offset to keep selection centered.
+    /// Works with the current tab's video list.
     pub fn move_up(&mut self) {
-        if self.filtered_videos.is_empty() {
+        let list = self.get_current_video_list();
+        if list.is_empty() {
             return;
         }
         if self.selected_index == 0 {
-            self.selected_index = self.filtered_videos.len() - 1;
+            self.selected_index = list.len() - 1;
         } else {
             self.selected_index -= 1;
         }
@@ -239,11 +272,13 @@ impl App {
     /// # Details
     /// Increments selected index, wrapping to top if at bottom.
     /// Updates scroll offset to keep selection centered.
+    /// Works with the current tab's video list.
     pub fn move_down(&mut self) {
-        if self.filtered_videos.is_empty() {
+        let list = self.get_current_video_list();
+        if list.is_empty() {
             return;
         }
-        self.selected_index = (self.selected_index + 1) % self.filtered_videos.len();
+        self.selected_index = (self.selected_index + 1) % list.len();
         self.update_scroll_offset();
     }
 
@@ -321,15 +356,90 @@ impl App {
     ///
     /// # Details
     /// Marks the currently selected video as watched in history.
+    /// Works with videos from any tab (CurrentView, Search, History).
     /// If hide_watched is enabled, the video will be removed from the list.
     pub fn mark_selected_watched(&mut self) {
-        if let Some(video) = self.selected_video() {
+        if let Some(video) = self.selected_video_from_tab() {
             let video_id = video.id.clone();
             self.history.mark_watched(&video_id);
-            if self.hide_watched {
+            if self.hide_watched && self.active_tab == Tab::CurrentView {
                 self.apply_filters();
             }
         }
+    }
+
+    /// Switch to a different tab.
+    ///
+    /// # Arguments
+    /// * `tab` - Tab to switch to
+    ///
+    /// # Details
+    /// Switches the active tab and resets selected index.
+    pub fn switch_tab(&mut self, tab: Tab) {
+        self.active_tab = tab;
+        self.selected_index = 0;
+    }
+
+    /// Get the currently active tab.
+    ///
+    /// # Returns
+    /// * `Tab` - Current active tab
+    pub fn active_tab(&self) -> Tab {
+        self.active_tab
+    }
+
+    /// Get the current video list based on active tab.
+    ///
+    /// # Returns
+    /// * `&Vec<Video>` - Reference to the appropriate video list
+    ///
+    /// # Details
+    /// Returns the video list for the currently active tab:
+    /// - CurrentView: filtered_videos
+    /// - Search: search_results
+    /// - History: history_videos
+    pub fn get_current_video_list(&self) -> &Vec<Video> {
+        match self.active_tab {
+            Tab::CurrentView => &self.filtered_videos,
+            Tab::Search => &self.search_results,
+            Tab::History => &self.history_videos,
+        }
+    }
+
+    /// Set search results from platform search.
+    ///
+    /// # Arguments
+    /// * `videos` - Videos from search
+    ///
+    /// # Details
+    /// Stores search results and resets selected index.
+    pub fn set_search_results(&mut self, videos: Vec<Video>) {
+        self.search_results = videos;
+        self.selected_index = 0;
+    }
+
+    /// Set history videos.
+    ///
+    /// # Arguments
+    /// * `videos` - Videos from history
+    ///
+    /// # Details
+    /// Stores history videos and resets selected index.
+    pub fn set_history_videos(&mut self, videos: Vec<Video>) {
+        self.history_videos = videos;
+        self.selected_index = 0;
+    }
+
+    /// Get the currently selected video from the active tab's list.
+    ///
+    /// # Returns
+    /// * `Option<&Video>` - Selected video or None if list is empty
+    ///
+    /// # Details
+    /// Returns the selected video from the appropriate list based on active tab.
+    pub fn selected_video_from_tab(&self) -> Option<&Video> {
+        let list = self.get_current_video_list();
+        list.get(self.selected_index)
     }
 }
 

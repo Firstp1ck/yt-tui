@@ -124,6 +124,35 @@ impl History {
         self.watched_videos.remove(video_id);
         self.watch_timestamps.remove(video_id);
     }
+
+    /// Get watched videos sorted by timestamp (newest first).
+    ///
+    /// # Returns
+    /// * `Vec<(String, String)>` - Vector of (video_id, timestamp) tuples sorted by timestamp
+    ///
+    /// # Details
+    /// Returns all watched video IDs with their timestamps, sorted by watch time (newest first).
+    pub fn get_watched_videos_sorted(&self) -> Vec<(String, String)> {
+        let mut videos: Vec<(String, String)> = self
+            .watch_timestamps
+            .iter()
+            .map(|(id, timestamp)| (id.clone(), timestamp.clone()))
+            .collect();
+
+        // Sort by timestamp (newest first)
+        videos.sort_by(|a, b| {
+            // Parse timestamps and compare
+            let time_a = chrono::DateTime::parse_from_rfc3339(&a.1).unwrap_or_else(|_| {
+                chrono::DateTime::parse_from_rfc3339("1970-01-01T00:00:00Z").unwrap()
+            });
+            let time_b = chrono::DateTime::parse_from_rfc3339(&b.1).unwrap_or_else(|_| {
+                chrono::DateTime::parse_from_rfc3339("1970-01-01T00:00:00Z").unwrap()
+            });
+            time_b.cmp(&time_a) // Reverse order for newest first
+        });
+
+        videos
+    }
 }
 
 #[cfg(test)]
