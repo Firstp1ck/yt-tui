@@ -1,0 +1,32 @@
+{
+    // YouTube Data API v3 key
+    // Get one from: https://console.cloud.google.com/apis/credentials
+    // Enable YouTube Data API v3 in your project
+    "api_key": "YOUR_API_KEY_HERE",
+
+    // OAuth2 credentials for personalized recommendations (optional)
+    // If not provided, the app will use trending videos instead
+    "oauth_client_id": null,
+    "oauth_client_secret": null,
+    "oauth_access_token": null,
+    "oauth_refresh_token": null,
+
+    // Default filter settings
+    "default_filters": {
+        // Filter by channel name (partial match, case-insensitive)
+        "channel": null,
+        // Minimum duration in seconds
+        "min_duration": null,
+        // Maximum duration in seconds
+        "max_duration": null,
+        // Filter videos after this date (RFC3339 format, e.g., "2024-01-01T00:00:00Z")
+        "after_date": null
+    },
+
+    // Whether to hide watched videos by default
+    "hide_watched": false,
+
+    // History file path (relative to config directory or absolute path)
+    "history_path": "history.json"
+}
+
